@@ -43,7 +43,7 @@ export default class GHSyncPlugin extends Plugin {
 
 	async SyncNotes()
 	{
-		new Notice("Syncing to GitHub remote")
+		// new Notice("Syncing to GitHub remote")
 
 		const USER = this.settings.ghUsername;
 		const PAT = this.settings.ghPersonalAccessToken;
@@ -102,7 +102,7 @@ export default class GHSyncPlugin extends Plugin {
 			return;
 		}
 
-		new Notice("GitHub Sync: Successfully set remote origin url");
+		// new Notice("GitHub Sync: Successfully set remote origin url");
 
 
 		// git pull origin main
@@ -110,7 +110,7 @@ export default class GHSyncPlugin extends Plugin {
 	    	//@ts-ignore
 	    	await git.pull('origin', 'main', { '--no-rebase': null }, (err, update) => {
 	      		if (update) {
-					new Notice("GitHub Sync: Pulled " + update.summary.changes + " changes");
+					// new Notice("GitHub Sync: Pulled " + update.summary.changes + " changes");
 	      		}
 	   		})
 	    } catch (e) {
@@ -136,7 +136,7 @@ export default class GHSyncPlugin extends Plugin {
 	    if (!clean) {
 		    try {
 		    	git.push('origin', 'main');
-		    	new Notice("GitHub Sync: Pushed on " + msg);
+		    	// new Notice("GitHub Sync: Pushed on " + msg);
 		    } catch (e) {
 		    	new Notice(e, 10000);
 			}
@@ -156,6 +156,7 @@ export default class GHSyncPlugin extends Plugin {
 			await this.SyncNotes()
 			isInactionSync = false;
 			console.log('stop sync')
+			new Notice("s");
 			changeCount = 0;
 		}
 	}
