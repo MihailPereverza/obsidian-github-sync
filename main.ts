@@ -78,6 +78,7 @@ export default class GHSyncPlugin extends Plugin {
 			try {
 				await git
 		    		.add("./*")
+					.rmKeepLocal("./.obsidian/*")
 		    		.commit(msg);
 		    } catch (e) {
 		    	new Notice(e);
