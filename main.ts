@@ -1,4 +1,13 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, Vault } from 'obsidian';
+import {
+	App,
+	Editor,
+	Modal,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	Vault
+} from 'obsidian';
 import { simpleGit, SimpleGit, CleanOptions, SimpleGitOptions } from 'simple-git';
 import { setIntervalAsync, clearIntervalAsync } from 'set-interval-async';
 
@@ -11,7 +20,8 @@ interface GHSyncSettings {
 	ghPersonalAccessToken: string;
 	ghRepoUrl: string;
 	gitLocation: string;
-	syncinterval: number;
+	syncInterval: number;
+	inactionSecondsIntervalToSync: number;
 }
 
 const DEFAULT_SETTINGS: GHSyncSettings = {
@@ -19,9 +29,14 @@ const DEFAULT_SETTINGS: GHSyncSettings = {
 	ghPersonalAccessToken: '',
 	ghRepoUrl: '',
 	gitLocation: '',
-	syncinterval: 0
+	syncInterval: 0,
+	inactionSecondsIntervalToSync: 0,
 }
 
+
+let lastUpdate = new Date();
+let isInactionSync = false;
+let changeCount = 0;
 
 export default class GHSyncPlugin extends Plugin {
 	settings: GHSyncSettings;
@@ -110,7 +125,7 @@ export default class GHSyncPlugin extends Plugin {
 			}
 			conflictMsg += "\nResolve them or click sync button again to push with unresolved conflicts."
 			new Notice(conflictMsg)
-			//@ts-ignore	
+			//@ts-ignore
 			for (let c of conflictStatus.conflicted)
 			{
 				this.app.workspace.openLinkText("", c, true);
@@ -130,10 +145,46 @@ export default class GHSyncPlugin extends Plugin {
 	    }
 	}
 
+	async watchChange(isInterval = false) {
+		await this.loadSettings();
+		const now = new Date();
+		const dateDiffMilliseconds = now.getTime() - lastUpdate.getTime()
+		lastUpdate = new Date();
+		if (dateDiffMilliseconds > this.settings.inactionSecondsIntervalToSync * 1000 && !isInactionSync && this.settings.inactionSecondsIntervalToSync > 0 && changeCount > 0) {
+			isInactionSync = true;
+			console.log('start sync')
+			console.log(dateDiffMilliseconds)
+			console.log(this.settings.inactionSecondsIntervalToSync * 1000)
+			await this.SyncNotes()
+			isInactionSync = false;
+			console.log('stop sync')
+			changeCount = 0;
+		}
+	}
+
+	async bindFunction() {
+		changeCount++;
+		await this.watchChange()
+	}
 
 	async onload() {
 		await this.loadSettings();
 
+		lastUpdate = new Date()
+		this.app.workspace.on('editor-change', this.bindFunction.bind(this))
+		if (this.settings.inactionSecondsIntervalToSync) {
+			const inactionInterval: number = this.settings.inactionSecondsIntervalToSync;
+			if (inactionInterval >= 1) {
+				try {
+					setIntervalAsync(async () => {
+						await this.watchChange(true);
+					}, inactionInterval * 1000);
+					//this.registerInterval(setInterval(this.SyncNotes, interval * 6 * 1000));
+					new Notice("Auto sync enabled");
+				} catch (e) { /* empty */ }
+			}
+		}
+		
 		const ribbonIconEl = this.addRibbonIcon('github', 'Sync with Remote', (evt: MouseEvent) => {
 			this.SyncNotes();
 		});
@@ -142,9 +193,9 @@ export default class GHSyncPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new GHSyncSettingTab(this.app, this));
 
-		if (!isNaN(this.settings.syncinterval))
+		if (!isNaN(this.settings.syncInterval))
 		{
-			let interval: number = this.settings.syncinterval;
+			let interval: number = this.settings.syncInterval;
 			if (interval >= 1)
 			{
 				try {
@@ -262,11 +313,21 @@ class GHSyncSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Auto sync at interval (optional)')
-			.setDesc('Set a positive integer minute interval after which your vault is synced automatically. Auto sync is disabled if this field is left empty or not a positive integer. Restart Obsidan to take effect.')
+			.setDesc('Set a positive integer seconds interval after which your vault is synced automatically. Auto sync is disabled if this field is left empty or not a positive integer. Restart Obsidan to take effect.')
 			.addText(text => text
-				.setValue(String(this.plugin.settings.syncinterval))
+				.setValue(String(this.plugin.settings.syncInterval))
 				.onChange(async (value) => {
-					this.plugin.settings.syncinterval = Number(value);
+					this.plugin.settings.syncInterval = Number(value);
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto sync at interval on inaction (optional)')
+			.setDesc('Set a positive integer seconds interval inaction after which your vault is synced automatically. Auto sync is disabled if this field is left empty or not a positive integer. Restart Obsidan to take effect.')
+			.addText(text => text
+				.setValue(String(this.plugin.settings.inactionSecondsIntervalToSync))
+				.onChange(async (value) => {
+					this.plugin.settings.inactionSecondsIntervalToSync = Number(value);
 					await this.plugin.saveSettings();
 				}));
 	}
