@@ -76,10 +76,7 @@ export default class GHSyncPlugin extends Plugin {
 		// git commit -m hostname-date-time
 		if (!clean) {
 			try {
-				await git
-		    		.add("./*")
-					.rmKeepLocal("./.obsidian/*")
-		    		.commit(msg);
+				await git.add('./[!.obsidian]*').commit(msg);
 		    } catch (e) {
 		    	new Notice(e);
 		    	return;
