@@ -153,10 +153,16 @@ export default class GHSyncPlugin extends Plugin {
 			console.log('start sync')
 			console.log(dateDiffMilliseconds)
 			console.log(this.settings.inactionSecondsIntervalToSync * 1000)
-			await this.SyncNotes()
+			try {
+				await this.SyncNotes()
+				console.log('stop sync')
+				new Notice("s");
+			} catch (e) {
+				console.log('error sync')
+				console.log(e)
+				new Notice('e')
+			}
 			isInactionSync = false;
-			console.log('stop sync')
-			new Notice("s");
 			changeCount = 0;
 		}
 	}
